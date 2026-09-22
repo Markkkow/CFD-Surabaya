@@ -1,6 +1,18 @@
 <?php
 
 use Illuminate\Support\Facades\Route;
+
+Route::get('/test-laravel', function () {
+    return response()->json([
+        'status' => 'Laravel OK',
+        'php' => PHP_VERSION,
+        'pdo_pgsql' => extension_loaded('pdo_pgsql'),
+        'db_driver' => config('database.default'),
+    ]);
+});
+
+
+use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\CfdController;
 use App\Http\Controllers\AdminController;
 use App\Http\Controllers\PenjualanController;
