@@ -1,5 +1,6 @@
 <?php
 
+
 use Illuminate\Support\Facades\Route;
 
 Route::get('/test-laravel', function () {
@@ -11,8 +12,6 @@ Route::get('/test-laravel', function () {
     ]);
 });
 
-
-use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\CfdController;
 use App\Http\Controllers\AdminController;
 use App\Http\Controllers\PenjualanController;
