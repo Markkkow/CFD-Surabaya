@@ -2,6 +2,7 @@ FROM dunglas/frankenphp:php8.4-bookworm
 
 WORKDIR /app
 
+# PHP extensions
 RUN install-php-extensions \
     pdo_mysql \
     mbstring \
@@ -11,20 +12,30 @@ RUN install-php-extensions \
     bcmath \
     intl
 
+# Node.js + npm
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends \
+        nodejs \
+        npm \
+    && rm -rf /var/lib/apt/lists/*
+
+# Composer
 COPY --from=composer:2 /usr/bin/composer /usr/bin/composer
 
-# Copy seluruh project terlebih dahulu
+# Copy project
 COPY . .
 
-# Install PHP dependencies
+# PHP dependencies
 RUN composer install \
     --no-dev \
     --no-interaction \
     --prefer-dist \
     --optimize-autoloader
 
-# Install frontend dependencies dan build Vite
+# Frontend dependencies
 RUN npm install
+
+# Build Vite
 RUN npm run build
 
 # Laravel writable directories
@@ -36,5 +47,5 @@ RUN mkdir -p \
 
 RUN chmod -R 775 storage bootstrap/cache
 
-# Start Laravel melalui FrankenPHP
+# Start Laravel
 CMD ["sh", "-c", "frankenphp php-server -r public/ --listen :${PORT:-80}"]
