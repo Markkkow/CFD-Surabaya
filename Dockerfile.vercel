@@ -5,6 +5,7 @@ WORKDIR /app
 # PHP extensions
 RUN install-php-extensions \
     pdo_mysql \
+    pdo_pgsql \
     mbstring \
     xml \
     curl \
