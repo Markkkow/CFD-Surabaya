@@ -13,23 +13,28 @@ RUN install-php-extensions \
 
 COPY --from=composer:2 /usr/bin/composer /usr/bin/composer
 
-COPY composer.json composer.lock ./
+# Copy seluruh project terlebih dahulu
+COPY . .
+
+# Install PHP dependencies
 RUN composer install \
     --no-dev \
     --no-interaction \
     --prefer-dist \
     --optimize-autoloader
 
-COPY . .
-
+# Install frontend dependencies dan build Vite
 RUN npm install
 RUN npm run build
 
-RUN mkdir -p storage/framework/cache \
+# Laravel writable directories
+RUN mkdir -p \
+    storage/framework/cache \
     storage/framework/sessions \
     storage/framework/views \
     bootstrap/cache
 
 RUN chmod -R 775 storage bootstrap/cache
 
+# Start Laravel melalui FrankenPHP
 CMD ["sh", "-c", "frankenphp php-server -r public/ --listen :${PORT:-80}"]
