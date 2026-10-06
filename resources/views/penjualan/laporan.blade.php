@@ -49,7 +49,7 @@
                         <div class="d-flex flex-column flex-md-row justify-content-between gap-3">
                             <div>
                                 <div class="small text-success fw-bold text-uppercase mb-1">{{ $p->event->nama_event }}</div>
-                                <h4 class="fw-bold mb-1">{{ $p->nama_produk }}</h4>
+                                <h4 class="fw-bold mb-1">{{ $p->produk->nama_produk ?? $p->nama_produk }}</h4>
                                 <div class="text-muted small"><i class="bi bi-calendar3 me-1"></i>{{ \Carbon\Carbon::parse($p->event->tanggal_event)->translatedFormat('d F Y') }} &nbsp;·&nbsp; <i class="bi bi-geo-alt me-1"></i>{{ $p->event->lokasi }}</div>
                             </div>
                             <span class="badge align-self-start rounded-pill bg-success-subtle text-success px-3 py-2">Lapak {{ $p->lapak->nomor_lapak ?? '-' }}</span>
@@ -58,21 +58,22 @@
                     <div class="card-body p-4">
                         <div class="row g-4">
                             <div class="col-lg-4">
-                                <div class="metric-box mb-3"><small>Produk dibawa / stok awal</small><strong class="fs-4">{{ number_format($p->jumlah_produk) }}</strong> unit</div>
-                                <div class="metric-box"><small>Jenis produk</small><strong>{{ $p->jenis_produk }}</strong></div>
+                                <div class="metric-box mb-3"><small>Produk dibawa / stok awal</small><strong class="fs-4">{{ number_format($p->produk->stok_produk ?? $p->jumlah_produk) }}</strong> unit</div>
+                                <div class="metric-box"><small>Jenis produk</small><strong>{{ $p->produk->kategori_produk ?? $p->jenis_produk }}</strong></div>
                             </div>
                             <div class="col-lg-8">
-                                <form method="POST" action="{{ route('penjualan.simpan', $p) }}" class="sales-form" data-stock="{{ $p->jumlah_produk }}">
+                                <form method="POST" action="{{ route('penjualan.simpan', $p) }}" class="sales-form" data-stock="{{ $p->produk->stok_produk ?? $p->jumlah_produk }}" data-price="{{ $p->produk->harga ?? 0 }}">
                                     @csrf
                                     <div class="row g-3">
                                         <div class="col-md-4">
                                             <label class="form-label fw-semibold">Produk terjual</label>
-                                            <div class="input-group"><input type="number" class="form-control sold-input" name="jumlah_terjual" min="0" max="{{ $p->jumlah_produk }}" value="{{ old('jumlah_terjual', 0) }}" required><span class="input-group-text">unit</span></div>
-                                            <div class="form-text">Maks. {{ $p->jumlah_produk }} unit.</div>
+                                            <div class="input-group"><input type="number" class="form-control sold-input" name="jumlah_terjual" min="0" max="{{ $p->produk->stok_produk ?? $p->jumlah_produk }}" value="{{ old('jumlah_terjual', 0) }}" required><span class="input-group-text">unit</span></div>
+                                            <div class="form-text">Maks. {{ $p->produk->stok_produk ?? $p->jumlah_produk }} unit.</div>
                                         </div>
                                         <div class="col-md-4">
-                                            <label class="form-label fw-semibold">Total pendapatan / omzet</label>
-                                            <div class="input-group"><span class="input-group-text">Rp</span><input type="number" class="form-control revenue-input" name="total_pendapatan" min="0" step="1000" value="{{ old('total_pendapatan', 0) }}" required></div>
+                                            <label class="form-label fw-semibold">Harga jual / unit</label>
+                                            <div class="input-group"><span class="input-group-text">Rp</span><input type="text" class="form-control price-input" value="{{ number_format($p->produk->harga ?? 0,0,',','.') }}" readonly></div>
+                                            <div class="form-text">Omzet dihitung otomatis dari detail penjualan.</div>
                                         </div>
                                         <div class="col-md-4">
                                             <label class="form-label fw-semibold">Total modal</label>
@@ -85,7 +86,7 @@
                                         <div class="col-12">
                                             <div class="money-preview d-flex flex-wrap justify-content-between align-items-center gap-3">
                                                 <div><small class="text-muted d-block">Preview hasil</small><strong class="preview-copy">0 dari {{ $p->jumlah_produk }} produk terjual · Sisa {{ $p->jumlah_produk }}</strong></div>
-                                                <div class="text-md-end"><small class="text-muted d-block">Estimasi laba/rugi</small><strong class="fs-5 profit-preview">Rp0</strong></div>
+                                                <div class="text-md-end"><small class="text-muted d-block">Omzet / Estimasi laba-rugi</small><strong class="fs-6 revenue-preview d-block">Rp0</strong><strong class="fs-5 profit-preview">Rp0</strong></div>
                                             </div>
                                         </div>
                                         <div class="col-12 text-end">
@@ -116,7 +117,7 @@
                 @php($r = $p->laporanPenjualan)
                 @php($laba = (float)$r->total_pendapatan - (float)$r->total_modal)
                 <tr>
-                    <td class="ps-4"><strong>{{ $p->event->nama_event }}</strong><div class="small text-muted">{{ $p->nama_produk }}</div></td>
+                    <td class="ps-4"><strong>{{ $p->event->nama_event }}</strong><div class="small text-muted">{{ $p->produk->nama_produk ?? $p->nama_produk }}</div></td>
                     <td><strong>{{ $r->jumlah_terjual }}</strong> / {{ $p->jumlah_produk }}</td>
                     <td>Rp{{ number_format($r->total_pendapatan,0,',','.') }}</td>
                     <td>Rp{{ number_format($r->total_modal,0,',','.') }}</td>
@@ -138,19 +139,22 @@
     document.querySelectorAll('.sales-form').forEach(form => {
         const stock = Number(form.dataset.stock || 0);
         const sold = form.querySelector('.sold-input');
-        const revenue = form.querySelector('.revenue-input');
+        const price = Number(form.dataset.price || 0);
+        const revenue = form.querySelector('.revenue-preview');
         const capital = form.querySelector('.capital-input');
         const copy = form.querySelector('.preview-copy');
         const profit = form.querySelector('.profit-preview');
         const update = () => {
             const s = Math.max(0, Math.min(stock, Number(sold.value || 0)));
-            const p = Number(revenue.value || 0) - Number(capital.value || 0);
+            const omzet = s * price;
+            const p = omzet - Number(capital.value || 0);
             copy.textContent = `${s} dari ${stock} produk terjual · Sisa ${Math.max(0, stock-s)}`;
+            revenue.textContent = rupiah(omzet);
             profit.textContent = (p < 0 ? '- ' : '') + rupiah(Math.abs(p));
             profit.classList.toggle('text-danger', p < 0);
             profit.classList.toggle('text-success', p >= 0);
         };
-        [sold,revenue,capital].forEach(el => el.addEventListener('input', update));
+        [sold,capital].forEach(el => el.addEventListener('input', update));
         update();
     });
 </script>

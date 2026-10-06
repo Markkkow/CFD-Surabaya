@@ -32,6 +32,11 @@ class LaporanPenjualan extends Model
         'updated_at' => 'datetime',
     ];
 
+    public function detailPenjualan()
+    {
+        return $this->hasMany(DetailPenjualan::class, 'id_laporan', 'id_laporan');
+    }
+
     public function pendaftaran()
     {
         return $this->belongsTo(PendaftaranTenant::class, 'id_pendaftaran', 'id_pendaftaran');

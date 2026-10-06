@@ -3,13 +3,14 @@
 namespace App\Http\Controllers;
 
 use App\Models\EventCfd;
+use App\Models\InboxPedagang;
 use App\Models\LapakTenant;
 use App\Models\PendaftaranTenant;
+use App\Models\Perizinan;
 use Illuminate\Http\Request;
 
 class AdminController extends Controller
 {
-    /** Daftar zona yang dikenali sistem (harus sama persis dengan key di lapak/index.blade.php) */
     public const ZONA_LIST = ['Kuliner', 'Fashion', 'Kerajinan', 'Jasa & Lainnya'];
 
     public function index()
@@ -17,7 +18,15 @@ class AdminController extends Controller
         $events = EventCfd::withCount('lapak')->orderByDesc('tanggal_event')->get();
         $activeEvents = EventCfd::aktifBerjalan()->orderBy('tanggal_event')->orderBy('waktu_mulai')->get();
 
-        // Rekap jumlah lapak per zona untuk tiap event, ditampilkan sebagai info kecil.
+        $rekapBaris = LapakTenant::selectRaw(
+                'MIN(id_lapak) as id_lapak, id_event, kategori_lapak, baris, COUNT(*) as total, MAX(kolom) as jumlah_kolom, MAX(ukuran_lapak) as ukuran_lapak, MAX(lokasi_lapak) as lokasi_lapak'
+            )
+            ->groupBy('id_event', 'kategori_lapak', 'baris')
+            ->orderBy('kategori_lapak')
+            ->orderBy('baris')
+            ->get()
+            ->groupBy('id_event');
+
         $rekapZona = LapakTenant::selectRaw('id_event, kategori_lapak, count(*) as total')
             ->groupBy('id_event', 'kategori_lapak')
             ->get()
@@ -27,6 +36,7 @@ class AdminController extends Controller
             'events' => $events,
             'activeEvents' => $activeEvents,
             'rekapZona' => $rekapZona,
+            'rekapBaris' => $rekapBaris,
             'zonaList' => self::ZONA_LIST,
         ]);
     }
@@ -87,8 +97,7 @@ class AdminController extends Controller
                 ->exists();
 
             if ($sudahAda) {
-                // Lapak dengan nomor ini sudah ada (mungkin ditambah sebelumnya) —
-                // dilewati saja supaya status/pemesanan yang sudah ada tidak ter-reset.
+
                 $dilewati++;
                 continue;
             }
@@ -122,19 +131,99 @@ class AdminController extends Controller
         return back()->with('success', "Lapak {$info} berhasil dihapus.");
     }
 
+    public function updateLapakBaris(Request $request, LapakTenant $lapak)
+    {
+        $data = $request->validate([
+            'jumlah_kolom' => 'required|integer|min:1|max:26',
+            'ukuran_lapak' => 'required|string|max:30',
+            'lokasi_lapak' => 'nullable|string|max:150',
+        ]);
+
+        $groupQuery = LapakTenant::where('id_event', $lapak->id_event)
+            ->where('kategori_lapak', $lapak->kategori_lapak)
+            ->where('baris', $lapak->baris);
+
+        $currentMax = (int) ($groupQuery->max('kolom') ?? 0);
+        $newMax = (int) $data['jumlah_kolom'];
+
+        if ($newMax < $currentMax) {
+            $lapakYangAkanDihapus = (clone $groupQuery)
+                ->where('kolom', '>', $newMax)
+                ->get();
+
+            foreach ($lapakYangAkanDihapus as $lapakHapus) {
+                if ($lapakHapus->status_lapak !== 'Tersedia') {
+                    return back()->withErrors([
+                        'lapak' => "Tidak dapat mengurangi jumlah lapak sampai {$newMax}. Lapak {$lapakHapus->nomor_lapak} sedang {$lapakHapus->status_lapak}.",
+                    ]);
+                }
+
+                if (PendaftaranTenant::where('id_lapak', $lapakHapus->id_lapak)->exists()) {
+                    return back()->withErrors([
+                        'lapak' => "Tidak dapat mengurangi jumlah lapak karena {$lapakHapus->nomor_lapak} sudah memiliki riwayat pendaftaran.",
+                    ]);
+                }
+            }
+
+            (clone $groupQuery)
+                ->where('kolom', '>', $newMax)
+                ->delete();
+        }
+
+        if ($newMax > $currentMax) {
+            for ($kolom = $currentMax + 1; $kolom <= $newMax; $kolom++) {
+                $nomorLapak = $lapak->baris . $kolom;
+
+                if (LapakTenant::where('id_event', $lapak->id_event)
+                    ->where('nomor_lapak', $nomorLapak)
+                    ->exists()) {
+                    continue;
+                }
+
+                LapakTenant::create([
+                    'id_event' => $lapak->id_event,
+                    'kategori_lapak' => $lapak->kategori_lapak,
+                    'baris' => $lapak->baris,
+                    'kolom' => $kolom,
+                    'nomor_lapak' => $nomorLapak,
+                    'lokasi_lapak' => $data['lokasi_lapak'] ?? null,
+                    'ukuran_lapak' => $data['ukuran_lapak'],
+                    'status_lapak' => 'Tersedia',
+                ]);
+            }
+        }
+
+        // Samakan informasi ukuran/lokasi pada seluruh lapak dalam baris tersebut.
+        (clone $groupQuery)->update([
+            'ukuran_lapak' => $data['ukuran_lapak'],
+            'lokasi_lapak' => $data['lokasi_lapak'] ?? null,
+        ]);
+
+        return back()->with(
+            'success',
+            "Zona {$lapak->kategori_lapak}, baris {$lapak->baris} berhasil diperbarui menjadi {$newMax} lapak."
+        );
+    }
+
     /** Daftar pendaftaran yang menunggu verifikasi, lengkap dengan data produk & pedagang. */
     public function verifikasi()
     {
-        $menunggu = PendaftaranTenant::with(['pedagang', 'event', 'lapak'])
+        $menunggu = PendaftaranTenant::with(['pedagang', 'event', 'lapak', 'produk'])
             ->where('status_pendaftaran', 'Menunggu Verifikasi')
             ->orderBy('tanggal_pendaftaran')
             ->get();
 
-        $riwayat = PendaftaranTenant::with(['pedagang', 'event', 'lapak'])
+        $riwayat = PendaftaranTenant::with(['pedagang', 'event', 'lapak', 'produk'])
             ->whereIn('status_pendaftaran', ['Terverifikasi', 'Ditolak'])
             ->orderByDesc('id_pendaftaran')
             ->limit(30)
             ->get();
+
+        foreach ($menunggu->concat($riwayat) as $p) {
+            $p->setRelation('perizinan', Perizinan::where('nik_pedagang', $p->nik_pedagang)
+                ->where('id_event', $p->id_event)
+                ->first());
+        }
 
         return view('admin.verifikasi', compact('menunggu', 'riwayat'));
     }
@@ -145,9 +234,26 @@ class AdminController extends Controller
             return back()->withErrors(['pendaftaran' => 'Pendaftaran ini sudah diproses sebelumnya.']);
         }
 
+        $perizinan = Perizinan::where('nik_pedagang', $pendaftaran->nik_pedagang)
+            ->where('id_event', $pendaftaran->id_event)
+            ->first();
+
+        if (! $perizinan || $perizinan->status_perizinan !== 'Menunggu Verifikasi') {
+            return back()->withErrors(['pendaftaran' => 'Dokumen perizinan belum tersedia atau sudah diproses.']);
+        }
+
         $pendaftaran->update([
             'status_pendaftaran' => 'Terverifikasi',
             'catatan_admin' => null,
+        ]);
+        $perizinan->update(['status_perizinan' => 'Terverifikasi']);
+
+        InboxPedagang::create([
+            'nik_pedagang' => $pendaftaran->nik_pedagang,
+            'tipe' => 'diterima',
+            'judul' => 'Verifikasi Diterima',
+            'pesan' => "Selamat! Pendaftaran produk \"{$pendaftaran->nama_produk}\" telah berhasil diverifikasi oleh admin.",
+            'id_pendaftaran' => $pendaftaran->id_pendaftaran,
         ]);
 
         return back()->with('success', "Pendaftaran {$pendaftaran->nama_produk} milik {$pendaftaran->pedagang->nama_pedagang} berhasil diverifikasi.");
@@ -163,16 +269,35 @@ class AdminController extends Controller
             'catatan_admin' => 'nullable|string|max:255',
         ]);
 
+        $catatan = trim((string) $request->catatan_admin);
+        if ($catatan === '') {
+            $catatan = 'Tidak ada alasan penolakan yang diberikan oleh admin.';
+        }
+
         $pendaftaran->update([
             'status_pendaftaran' => 'Ditolak',
-            'catatan_admin' => $request->catatan_admin,
+            'catatan_admin' => $catatan,
         ]);
 
-        // Lapak dikembalikan menjadi "Tersedia" lagi supaya bisa dipilih pedagang lain
-        // (atau dicoba ulang oleh pedagang yang sama dengan lapak lain).
+        $perizinan = Perizinan::where('nik_pedagang', $pendaftaran->nik_pedagang)
+            ->where('id_event', $pendaftaran->id_event)
+            ->first();
+        if ($perizinan) {
+            $perizinan->update(['status_perizinan' => 'Ditolak']);
+        }
+
+
         if ($pendaftaran->lapak) {
             $pendaftaran->lapak->update(['status_lapak' => 'Tersedia']);
         }
+
+        InboxPedagang::create([
+            'nik_pedagang' => $pendaftaran->nik_pedagang,
+            'tipe' => 'ditolak',
+            'judul' => 'Verifikasi Ditolak',
+            'pesan' => "Pendaftaran produk \"{$pendaftaran->nama_produk}\" ditolak oleh admin.\n\nAlasan penolakan:\n{$catatan}",
+            'id_pendaftaran' => $pendaftaran->id_pendaftaran,
+        ]);
 
         return back()->with('success', "Pendaftaran {$pendaftaran->nama_produk} milik {$pendaftaran->pedagang->nama_pedagang} ditolak. Lapak dikembalikan menjadi tersedia.");
     }

@@ -10,11 +10,7 @@ use Illuminate\Support\Facades\Hash;
 
 class CfdDemoSeeder extends Seeder
 {
-    /**
-     * Seed 1 event CFD lengkap dengan denah lapak ala "kursi bioskop":
-     * setiap kategori dagangan (zona) punya area sendiri, dan di dalam
-     * zona itu lapak disusun per baris & kolom.
-     */
+
     public function run(): void
     {
         $event = EventCfd::updateOrCreate(
@@ -29,7 +25,6 @@ class CfdDemoSeeder extends Seeder
             ]
         );
 
-        // Definisi zona: kategori => [baris => jumlah_kolom]
         $zonas = [
             'Kuliner' => [
                 'ukuran' => '2x2 m',
@@ -53,8 +48,6 @@ class CfdDemoSeeder extends Seeder
             ],
         ];
 
-        // Pola lapak yang sudah "Dipesan" agar tampilan demo terlihat hidup,
-        // seperti kursi bioskop yang sebagian sudah terisi.
         $sudahDipesan = ['A2', 'A3', 'A7', 'B5', 'C1', 'C2', 'D6', 'E3', 'F1'];
 
         foreach ($zonas as $kategori => $data) {
@@ -80,7 +73,6 @@ class CfdDemoSeeder extends Seeder
             }
         }
 
-        // Akun pedagang contoh untuk uji coba login.
         Pedagang::updateOrCreate(
             ['username' => 'pedagang1'],
             [

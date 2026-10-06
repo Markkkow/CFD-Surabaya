@@ -8,10 +8,10 @@ class AdminAnalyticsController extends Controller
 {
     public function index()
     {
-        $laporan = LaporanPenjualan::with(['pendaftaran.pedagang', 'pendaftaran.event', 'pendaftaran.lapak'])
+        $laporan = LaporanPenjualan::with(['pendaftaran.pedagang', 'pendaftaran.event', 'pendaftaran.lapak', 'pendaftaran.produk', 'detailPenjualan.produk'])
             ->get();
 
-        $stok = $laporan->sum(fn ($item) => (int) ($item->pendaftaran->jumlah_produk ?? 0));
+        $stok = $laporan->sum(fn ($item) => (int) ($item->pendaftaran->produk?->stok_produk ?? $item->pendaftaran->jumlah_produk ?? 0));
         $terjual = $laporan->sum('jumlah_terjual');
         $omzet = $laporan->sum(fn ($item) => (float) $item->total_pendapatan);
         $modal = $laporan->sum(fn ($item) => (float) $item->total_modal);
@@ -52,7 +52,7 @@ class AdminAnalyticsController extends Controller
                 ];
             })->sortBy('tanggal')->values();
 
-        $perKategori = $laporan->groupBy(fn ($item) => $item->pendaftaran->jenis_produk ?: 'Tidak dikategorikan')
+        $perKategori = $laporan->groupBy(fn ($item) => ($item->pendaftaran->produk?->kategori_produk ?? $item->pendaftaran->jenis_produk) ?: 'Tidak dikategorikan')
             ->map(function ($items, $kategori) {
                 $stok = $items->sum(fn ($i) => (int) ($i->pendaftaran->jumlah_produk ?? 0));
                 $terjual = $items->sum('jumlah_terjual');

@@ -22,10 +22,7 @@ class EventCfd extends Model
     ];
 
 
-    /**
-     * Event yang masih layak ditampilkan/didaftari.
-     * Status harus Aktif dan waktu selesai event belum terlewati.
-     */
+
     public function scopeAktifBerjalan(Builder $query): Builder
     {
         $sekarang = now();
@@ -41,7 +38,6 @@ class EventCfd extends Model
             });
     }
 
-    /** Event yang waktu selesainya sudah terlewati. */
     public function scopeSudahSelesai(Builder $query): Builder
     {
         $sekarang = now();
@@ -58,6 +54,11 @@ class EventCfd extends Model
     public function lapak()
     {
         return $this->hasMany(LapakTenant::class, 'id_event', 'id_event');
+    }
+
+    public function perizinan()
+    {
+        return $this->hasMany(Perizinan::class, 'id_event', 'id_event');
     }
 
     public function pendaftaran()

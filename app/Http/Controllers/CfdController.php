@@ -12,10 +12,10 @@ use App\Models\Pedagang;
 use App\Models\LapakTenant;
 use App\Models\EventCfd;
 use App\Models\PendaftaranTenant;
+use App\Models\Produk;
 
 class CfdController extends Controller
 {
-    /** Pilihan jenis produk yang bisa dipilih pedagang (biar tidak perlu ngetik manual). */
     public const JENIS_PRODUK_LIST = [
         'Makanan Berat',
         'Makanan Ringan / Snack',
@@ -51,10 +51,6 @@ class CfdController extends Controller
         return view('auth.login');
     }
 
-    /**
-     * Login gabungan: satu form untuk Pedagang maupun Admin.
-     * Dicek dulu ke tabel pedagang, kalau tidak cocok baru dicek ke tabel admin.
-     */
     public function login(Request $request)
     {
         $request->validate([
@@ -64,8 +60,6 @@ class CfdController extends Controller
 
         $pedagang = Pedagang::where('username', $request->username)->first();
         if ($pedagang && Hash::check($request->password, $pedagang->password)) {
-            // Pastikan hanya satu jenis akun yang aktif dalam satu session.
-            // Ini mencegah session admin dan pedagang bertumpuk ketika pengguna berganti akun.
             Auth::guard('admin')->logout();
             Auth::guard('pedagang')->login($pedagang);
             $request->session()->regenerate();
@@ -75,7 +69,6 @@ class CfdController extends Controller
 
         $admin = Admin::where('username', $request->username)->first();
         if ($admin && Hash::check($request->password, $admin->password)) {
-            // Saat masuk sebagai admin, keluarkan akun pedagang yang mungkin masih aktif.
             Auth::guard('pedagang')->logout();
             Auth::guard('admin')->login($admin);
             $request->session()->regenerate();
@@ -127,8 +120,6 @@ class CfdController extends Controller
     {
         $nik = Auth::guard('pedagang')->user()->nik_pedagang;
 
-        // Kalau pedagang ini masih punya pendaftaran yang belum dilengkapi data
-        // produknya, arahkan dulu ke sana sebelum bisa memilih lapak lagi.
         $belumLengkap = PendaftaranTenant::where('nik_pedagang', $nik)
             ->where('status_pendaftaran', 'Menunggu Data Produk')
             ->first();
@@ -140,8 +131,6 @@ class CfdController extends Controller
 
         $events = EventCfd::aktifBerjalan()->orderBy('tanggal_event')->orderBy('waktu_mulai')->get();
 
-        // Registrasi AKTIF milik pedagang ini (bukan yang Ditolak) per event —
-        // dipakai untuk menegakkan aturan "1 pedagang hanya boleh 1 lapak per event".
         $registrasiSaya = PendaftaranTenant::with('lapak')
             ->where('nik_pedagang', $nik)
             ->whereIn('id_event', $events->pluck('id_event'))
@@ -149,16 +138,13 @@ class CfdController extends Controller
             ->get()
             ->keyBy('id_event');
 
-        // Ambil SEMUA lapak (bukan cuma yang tersedia) supaya lapak yang sudah
-        // "Dipesan" tetap tampil di denah, seperti kursi bioskop yang sudah terisi.
         $semuaLapak = LapakTenant::whereIn('id_event', $events->pluck('id_event'))
             ->orderBy('kategori_lapak')
             ->orderBy('baris')
             ->orderBy('kolom')
             ->get();
 
-        // Susun menjadi struktur bertingkat: [id_event][kategori][baris][] = lapak
-        // agar Blade tinggal me-render denah per zona per baris, tanpa parsing.
+
         $lapakByEvent = [];
         foreach ($semuaLapak as $l) {
             $lapakByEvent[$l->id_event][$l->kategori_lapak][$l->baris][] = $l;
@@ -177,8 +163,7 @@ class CfdController extends Controller
         $nik = Auth::guard('pedagang')->user()->nik_pedagang;
 
         return DB::transaction(function () use ($request, $nik) {
-            // Kunci baris lapak ini supaya tidak ada 2 request bersamaan yang
-            // sama-sama lolos cek "Tersedia" (mencegah race condition).
+
             $eventMasihAktif = EventCfd::aktifBerjalan()
                 ->where('id_event', $request->id_event)
                 ->exists();
@@ -196,7 +181,6 @@ class CfdController extends Controller
                 return back()->withErrors(['id_lapak' => 'Lapak yang dipilih sudah tidak tersedia. Silakan pilih lapak lain.']);
             }
 
-            // ATURAN KERAS: 1 pedagang hanya boleh punya 1 lapak per event.
             $sudahPunya = PendaftaranTenant::where('nik_pedagang', $nik)
                 ->where('id_event', $request->id_event)
                 ->whereIn('status_pendaftaran', PendaftaranTenant::STATUS_AKTIF)
@@ -221,7 +205,6 @@ class CfdController extends Controller
         });
     }
 
-    /** Tampilkan form pengisian data produk untuk pendaftaran yang baru dipilih. */
     public function lengkapiProduk()
     {
         $nik = Auth::guard('pedagang')->user()->nik_pedagang;
@@ -242,7 +225,6 @@ class CfdController extends Controller
         ]);
     }
 
-    /** Simpan data produk lalu majukan status ke "Menunggu Verifikasi". */
     public function simpanProduk(Request $request)
     {
         $nik = Auth::guard('pedagang')->user()->nik_pedagang;
@@ -252,6 +234,7 @@ class CfdController extends Controller
             'nama_produk' => 'required|string|max:150',
             'jenis_produk' => 'required|in:' . implode(',', self::JENIS_PRODUK_LIST),
             'jumlah_produk' => 'required|integer|min:1',
+            'harga_produk' => 'required|integer|min:1|max:999999999',
             'keterangan_tambahan' => 'nullable|string|max:1000',
             'foto_produk' => 'nullable|image|max:2048',
         ]);
@@ -265,30 +248,41 @@ class CfdController extends Controller
             return redirect()->route('lapak.index')->withErrors(['id_pendaftaran' => 'Pendaftaran tidak ditemukan atau sudah diproses.']);
         }
 
-        $dataUpdate = [
-            'nama_produk' => $request->nama_produk,
-            'jenis_produk' => $request->jenis_produk,
-            'jumlah_produk' => $request->jumlah_produk,
-            'keterangan_tambahan' => $request->keterangan_tambahan,
-            'status_pendaftaran' => 'Menunggu Verifikasi',
-        ];
-
+        $fotoPath = $pendaftaran->foto_produk;
         if ($request->hasFile('foto_produk')) {
-            // Hapus foto lama kalau ada, lalu simpan yang baru ke storage/app/public/produk
-            if ($pendaftaran->foto_produk) {
-                Storage::disk('public')->delete($pendaftaran->foto_produk);
+            if ($fotoPath) {
+                Storage::disk('public')->delete($fotoPath);
             }
-            $dataUpdate['foto_produk'] = $request->file('foto_produk')->store('produk', 'public');
+            $fotoPath = $request->file('foto_produk')->store('produk', 'public');
         }
 
-        $pendaftaran->update($dataUpdate);
+        $produk = Produk::create([
+            'nik_pedagang' => $nik,
+            'nama_produk' => $request->nama_produk,
+            'kategori_produk' => $request->jenis_produk,
+            'harga' => $request->harga_produk,
+            'stok_produk' => $request->jumlah_produk,
+            'deskripsi_produk' => $request->keterangan_tambahan,
+            'foto_produk' => $fotoPath,
+        ]);
 
-        return redirect()->route('home')->with('success', 'Data produk berhasil disimpan. Pendaftaran Anda kini menunggu verifikasi admin.');
+        $pendaftaran->update([
+            'id_produk' => $produk->id_produk,
+            'nama_produk' => $produk->nama_produk,
+            'jenis_produk' => $produk->kategori_produk,
+            'jumlah_produk' => $produk->stok_produk,
+            'keterangan_tambahan' => $produk->deskripsi_produk,
+            'foto_produk' => $produk->foto_produk,
+            'status_pendaftaran' => 'Menunggu Perizinan',
+        ]);
+
+        return redirect()->route('perizinan.create')
+            ->with('success', 'Data produk berhasil disimpan. Lengkapi dokumen perizinan untuk melanjutkan.');
     }
 
     public function logout(Request $request)
     {
-        // Bersihkan kedua guard agar tidak ada akun lama yang tertinggal di session.
+
         Auth::guard('admin')->logout();
         Auth::guard('pedagang')->logout();
 

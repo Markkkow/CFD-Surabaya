@@ -56,7 +56,7 @@
     <h2 class="fw-heading fw-bold mb-1">
         <i class="bi bi-patch-check-fill me-2" style="color:var(--cfd-green);"></i>Verifikasi Pendaftaran Tenant
     </h2>
-    <p class="text-muted mb-0">Tinjau data produk pedagang sebelum lapak resmi diverifikasi.</p>
+    <p class="text-muted mb-0">Tinjau data produk dan dokumen perizinan pedagang sebelum lapak resmi diverifikasi.</p>
 </div>
 
 <h5 class="fw-heading fw-bold mb-3">
@@ -101,14 +101,14 @@
                     </div>
                     <hr>
                     <div class="d-flex gap-3 mb-3">
-                        @if($p->foto_produk)
-                            <img src="{{ asset('storage/' . $p->foto_produk) }}"
-                                 alt="Foto produk {{ $p->nama_produk }}"
+                        @if($p->produk?->foto_produk || $p->foto_produk)
+                            <img src="{{ asset('storage/' . ($p->produk->foto_produk ?? $p->foto_produk)) }}"
+                                 alt="Foto produk {{ $p->produk->nama_produk ?? $p->nama_produk }}"
                                  class="rounded-3 border flex-shrink-0 product-photo-thumb js-product-photo"
                                  data-bs-toggle="modal"
                                  data-bs-target="#productPhotoModal"
-                                 data-photo-src="{{ asset('storage/' . $p->foto_produk) }}"
-                                 data-photo-name="{{ $p->nama_produk }}"
+                                 data-photo-src="{{ asset('storage/' . ($p->produk->foto_produk ?? $p->foto_produk)) }}"
+                                 data-photo-name="{{ $p->produk->nama_produk ?? $p->nama_produk }}"
                                  title="Klik untuk memperbesar foto">
                         @else
                             <div class="rounded-3 border d-flex align-items-center justify-content-center flex-shrink-0 text-muted"
@@ -119,15 +119,15 @@
                         <div class="info-grid flex-grow-1">
                             <div class="info-item">
                                 <div class="label">Nama Produk</div>
-                                <div class="value">{{ $p->nama_produk }}</div>
+                                <div class="value">{{ $p->produk->nama_produk ?? $p->nama_produk }}</div>
                             </div>
                             <div class="info-item">
                                 <div class="label">Jenis Produk</div>
-                                <div class="value">{{ $p->jenis_produk }}</div>
+                                <div class="value">{{ $p->produk->kategori_produk ?? $p->jenis_produk }}</div>
                             </div>
                             <div class="info-item">
                                 <div class="label">Jumlah Produk</div>
-                                <div class="value">{{ $p->jumlah_produk }}</div>
+                                <div class="value">{{ $p->produk->stok_produk ?? $p->jumlah_produk }}</div>
                             </div>
                         </div>
                     </div>
@@ -137,6 +137,21 @@
                             <div class="value fw-normal">{{ $p->keterangan_tambahan }}</div>
                         </div>
                     @endif
+
+                    <div class="border rounded-3 p-3 mt-3" style="background:#f8faf9;">
+                        <div class="fw-bold mb-2"><i class="bi bi-file-earmark-check me-1"></i>Perizinan</div>
+                        @if($p->perizinan)
+                            <div class="info-grid">
+                                <div class="info-item"><div class="label">Jenis</div><div class="value">{{ $p->perizinan->jenis_perizinan }}</div></div>
+                                <div class="info-item"><div class="label">Tanggal Pengajuan</div><div class="value">{{ optional($p->perizinan->tanggal_pengajuan)->format('d/m/Y') }}</div></div>
+                                <div class="info-item"><div class="label">Tanggal Berlaku</div><div class="value">{{ optional($p->perizinan->tanggal_berlaku)->format('d/m/Y') }}</div></div>
+                                <div class="info-item"><div class="label">Status</div><div class="value">{{ $p->perizinan->status_perizinan }}</div></div>
+                            </div>
+                            <a class="btn btn-sm btn-outline-success mt-3" href="{{ asset('storage/' . $p->perizinan->dokumen_perizinan) }}" target="_blank" rel="noopener"><i class="bi bi-file-earmark-arrow-down me-1"></i>Lihat Dokumen</a>
+                        @else
+                            <div class="text-danger small">Dokumen perizinan belum tersedia. Pendaftaran tidak dapat diterima sebelum perizinan diajukan.</div>
+                        @endif
+                    </div>
 
                     <div class="d-flex flex-wrap gap-2 mt-3">
                         <form action="{{ route('admin.verifikasi.terima', $p->id_pendaftaran) }}" method="POST"
@@ -197,7 +212,7 @@
                             <div class="fw-semibold">{{ $p->pedagang->nama_pedagang ?? '-' }}</div>
                             <div class="small text-muted">{{ $p->pedagang->nama_usaha ?? '' }}</div>
                         </td>
-                        <td>{{ $p->nama_produk }}</td>
+                        <td>{{ $p->produk->nama_produk ?? $p->nama_produk }}</td>
                         <td>{{ $p->lapak->nomor_lapak ?? '-' }} <span class="small text-muted">({{ $p->lapak->kategori_lapak ?? '-' }})</span></td>
                         <td>
                             @if($p->status_pendaftaran === 'Terverifikasi')

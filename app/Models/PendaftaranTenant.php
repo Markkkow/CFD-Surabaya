@@ -14,6 +14,7 @@ class PendaftaranTenant extends Model
         'nik_pedagang',
         'id_event',
         'id_lapak',
+        'id_produk',
         'nama_produk',
         'jenis_produk',
         'jumlah_produk',
@@ -24,8 +25,7 @@ class PendaftaranTenant extends Model
         'catatan_admin',
     ];
 
-    /** Status yang dianggap masih "aktif" / memblokir pedagang memilih lapak lain di event yang sama. */
-    public const STATUS_AKTIF = ['Menunggu Data Produk', 'Menunggu Verifikasi', 'Terverifikasi'];
+    public const STATUS_AKTIF = ['Menunggu Data Produk', 'Menunggu Perizinan', 'Menunggu Verifikasi', 'Terverifikasi'];
 
     public function pedagang()
     {
@@ -40,6 +40,11 @@ class PendaftaranTenant extends Model
     public function lapak()
     {
         return $this->belongsTo(LapakTenant::class, 'id_lapak', 'id_lapak');
+    }
+
+    public function produk()
+    {
+        return $this->belongsTo(Produk::class, 'id_produk', 'id_produk');
     }
 
     public function laporanPenjualan()

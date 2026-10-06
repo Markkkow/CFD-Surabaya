@@ -24,7 +24,7 @@
                         <i class="bi bi-box-seam fs-2" style="color:var(--cfd-green);"></i>
                     </div>
                     <h2 class="fw-heading fw-bold mb-1">Lengkapi Data Produk</h2>
-                    <p class="text-muted mb-0">Informasi ini akan ditinjau oleh admin sebelum lapak Anda diverifikasi.</p>
+                    <p class="text-muted mb-0">Informasi ini akan disimpan ke data PRODUK dan ditinjau admin sebelum lapak Anda diverifikasi.</p>
                 </div>
 
                 <form action="{{ route('produk.simpan') }}" method="POST" enctype="multipart/form-data" novalidate>
@@ -43,6 +43,15 @@
                             <input type="number" name="jumlah_produk" min="1" class="form-control @error('jumlah_produk') is-invalid @enderror"
                                    placeholder="Contoh: 50" value="{{ old('jumlah_produk') }}" required>
                             @error('jumlah_produk')<div class="invalid-feedback">{{ $message }}</div>@enderror
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label fw-semibold">Harga Jual per Unit</label>
+                            <div class="input-group">
+                                <span class="input-group-text">Rp</span>
+                                <input type="number" name="harga_produk" min="1" class="form-control @error('harga_produk') is-invalid @enderror"
+                                       placeholder="Contoh: 15000" value="{{ old('harga_produk') }}" required>
+                            </div>
+                            @error('harga_produk')<div class="invalid-feedback d-block">{{ $message }}</div>@enderror
                         </div>
                         <div class="col-12">
                             <label class="form-label fw-semibold">Jenis Produk</label>
@@ -75,7 +84,7 @@
                     </div>
 
                     <button type="submit" class="btn btn-success w-100 py-2 fw-bold rounded-3">
-                        <i class="bi bi-send-check me-1"></i> Kirim & Ajukan Verifikasi
+                        <i class="bi bi-send-check me-1"></i> Simpan Produk & Lanjutkan Perizinan
                     </button>
                 </form>
             </div>
