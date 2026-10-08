@@ -352,22 +352,20 @@
 </head>
 <body>
     <nav class="navbar navbar-dark cfd-navbar">
-        <div class="container">
-            <div class="d-flex align-items-center gap-2">
-                <button
-                    id="cfdMenuButton"
-                    class="btn cfd-menu-btn"
-                    type="button"
-                    aria-label="Buka menu"
-                    aria-controls="cfdMenu"
-                    aria-expanded="false">
-                    <span class="cfd-menu-icon" aria-hidden="true"><span></span></span>
-                </button>
+        <div class="container d-flex align-items-center justify-content-between">
+            <a class="navbar-brand d-flex align-items-center gap-2 mb-0" href="{{ route('home') }}">
+                <i class="bi bi-shop-window fs-4"></i> CFD Surabaya
+            </a>
 
-                <a class="navbar-brand d-flex align-items-center gap-2 mb-0" href="{{ route('home') }}">
-                    <i class="bi bi-shop-window fs-4"></i> CFD Surabaya
-                </a>
-            </div>
+            <button
+                id="cfdMenuButton"
+                class="btn cfd-menu-btn"
+                type="button"
+                aria-label="Buka menu"
+                aria-controls="cfdMenu"
+                aria-expanded="false">
+                <span class="cfd-menu-icon" aria-hidden="true"><span></span></span>
+            </button>
         </div>
     </nav>
 
