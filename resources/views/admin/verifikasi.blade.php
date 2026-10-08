@@ -56,7 +56,7 @@
     <h2 class="fw-heading fw-bold mb-1">
         <i class="bi bi-patch-check-fill me-2" style="color:var(--cfd-green);"></i>Verifikasi Pendaftaran Tenant
     </h2>
-    <p class="text-muted mb-0">Tinjau data produk dan dokumen perizinan pedagang sebelum lapak resmi diverifikasi.</p>
+    <p class="text-muted mb-0">Tinjau data produk pedagang. Jika disetujui, sistem otomatis mencatat perizinan dan membuat dokumen izin berjualan.</p>
 </div>
 
 <h5 class="fw-heading fw-bold mb-3">
@@ -140,17 +140,9 @@
 
                     <div class="border rounded-3 p-3 mt-3" style="background:#f8faf9;">
                         <div class="fw-bold mb-2"><i class="bi bi-file-earmark-check me-1"></i>Perizinan</div>
-                        @if($p->perizinan)
-                            <div class="info-grid">
-                                <div class="info-item"><div class="label">Jenis</div><div class="value">{{ $p->perizinan->jenis_perizinan }}</div></div>
-                                <div class="info-item"><div class="label">Tanggal Pengajuan</div><div class="value">{{ optional($p->perizinan->tanggal_pengajuan)->format('d/m/Y') }}</div></div>
-                                <div class="info-item"><div class="label">Tanggal Berlaku</div><div class="value">{{ optional($p->perizinan->tanggal_berlaku)->format('d/m/Y') }}</div></div>
-                                <div class="info-item"><div class="label">Status</div><div class="value">{{ $p->perizinan->status_perizinan }}</div></div>
-                            </div>
-                            <a class="btn btn-sm btn-outline-success mt-3" href="{{ asset('storage/' . $p->perizinan->dokumen_perizinan) }}" target="_blank" rel="noopener"><i class="bi bi-file-earmark-arrow-down me-1"></i>Lihat Dokumen</a>
-                        @else
-                            <div class="text-danger small">Dokumen perizinan belum tersedia. Pendaftaran tidak dapat diterima sebelum perizinan diajukan.</div>
-                        @endif
+                        <div class="small text-muted">
+                            Perizinan merupakan pencatatan hasil persetujuan. Jika pendaftaran diterima, sistem akan otomatis membuat catatan perizinan dan dokumen izin berjualan CFD.
+                        </div>
                     </div>
 
                     <div class="d-flex flex-wrap gap-2 mt-3">
@@ -202,6 +194,7 @@
                     <th>Produk</th>
                     <th>Lapak</th>
                     <th>Status</th>
+                    <th>Dokumen Izin</th>
                     <th>Catatan</th>
                 </tr>
             </thead>
@@ -219,6 +212,15 @@
                                 <span class="status-pill status-terverifikasi">Terverifikasi</span>
                             @else
                                 <span class="status-pill status-ditolak">Ditolak</span>
+                            @endif
+                        </td>
+                        <td>
+                            @if($p->status_pendaftaran === 'Terverifikasi' && $p->perizinan)
+                                <a href="{{ route('admin.perizinan.dokumen', $p->perizinan->id_perizinan) }}" class="btn btn-sm btn-outline-success" target="_blank" rel="noopener">
+                                    <i class="bi bi-file-earmark-text me-1"></i>Dokumen Izin
+                                </a>
+                            @else
+                                <span class="small text-muted">-</span>
                             @endif
                         </td>
                         <td class="small text-muted">{{ $p->catatan_admin ?? '-' }}</td>

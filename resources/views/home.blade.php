@@ -120,6 +120,20 @@
 
 @section('content')
 @auth('pedagang')
+    @if($latestPerizinan)
+        <div class="alert alert-success border-0 shadow-sm rounded-4 d-flex flex-column flex-md-row align-items-md-center justify-content-between gap-3 mb-4 p-4">
+            <div class="d-flex align-items-start gap-3">
+                <div class="rounded-circle bg-white text-success d-flex align-items-center justify-content-center flex-shrink-0" style="width:48px;height:48px"><i class="bi bi-file-earmark-check fs-5"></i></div>
+                <div>
+                    <strong class="d-block mb-1">Izin berjualan kamu sudah diterbitkan</strong>
+                    <span class="small">{{ $latestPerizinan->event->nama_event }} · berlaku {{ optional($latestPerizinan->tanggal_berlaku)->format('d F Y') }}</span>
+                </div>
+            </div>
+            <a href="{{ route('perizinan.dokumen', $latestPerizinan->id_perizinan) }}" target="_blank" rel="noopener" class="btn btn-success flex-shrink-0">
+                <i class="bi bi-file-earmark-text me-1"></i>Lihat Surat Izin
+            </a>
+        </div>
+    @endif
     @if(($pendingSalesReportsCount ?? 0) > 0)
         <div class="alert alert-warning border-0 shadow-sm rounded-4 d-flex flex-column flex-md-row align-items-md-center justify-content-between gap-3 mb-4 p-4">
             <div class="d-flex align-items-start gap-3">

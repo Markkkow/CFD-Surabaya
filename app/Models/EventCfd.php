@@ -11,6 +11,10 @@ class EventCfd extends Model
     protected $primaryKey = 'id_event';
     public $timestamps = false;
 
+    protected $casts = [
+        'tanggal_event' => 'date',
+    ];
+
     protected $fillable = [
         'nama_event', 
         'tanggal_event', 

@@ -234,19 +234,26 @@ class AdminController extends Controller
             return back()->withErrors(['pendaftaran' => 'Pendaftaran ini sudah diproses sebelumnya.']);
         }
 
-        $perizinan = Perizinan::where('nik_pedagang', $pendaftaran->nik_pedagang)
-            ->where('id_event', $pendaftaran->id_event)
-            ->first();
-
-        if (! $perizinan || $perizinan->status_perizinan !== 'Menunggu Verifikasi') {
-            return back()->withErrors(['pendaftaran' => 'Dokumen perizinan belum tersedia atau sudah diproses.']);
-        }
+        // Setelah pendaftaran disetujui, sistem otomatis mencatat perizinan.
+        // Pedagang tidak perlu mengajukan dokumen perizinan secara terpisah.
+        $perizinan = Perizinan::updateOrCreate(
+            [
+                'nik_pedagang' => $pendaftaran->nik_pedagang,
+                'id_event' => $pendaftaran->id_event,
+            ],
+            [
+                'jenis_perizinan' => 'Izin Berjualan CFD',
+                'tanggal_pengajuan' => now()->toDateString(),
+                'tanggal_berlaku' => $pendaftaran->event->tanggal_event,
+                'status_perizinan' => 'Terverifikasi',
+                'dokumen_perizinan' => '',
+            ]
+        );
 
         $pendaftaran->update([
             'status_pendaftaran' => 'Terverifikasi',
             'catatan_admin' => null,
         ]);
-        $perizinan->update(['status_perizinan' => 'Terverifikasi']);
 
         InboxPedagang::create([
             'nik_pedagang' => $pendaftaran->nik_pedagang,

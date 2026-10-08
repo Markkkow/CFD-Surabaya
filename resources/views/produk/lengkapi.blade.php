@@ -84,7 +84,7 @@
                     </div>
 
                     <button type="submit" class="btn btn-success w-100 py-2 fw-bold rounded-3">
-                        <i class="bi bi-send-check me-1"></i> Simpan Produk & Lanjutkan Perizinan
+                        <i class="bi bi-send-check me-1"></i> Simpan Produk & Kirim untuk Verifikasi
                     </button>
                 </form>
             </div>

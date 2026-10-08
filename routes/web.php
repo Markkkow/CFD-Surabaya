@@ -22,8 +22,7 @@ Route::middleware('auth:pedagang')->group(function () {
     Route::post('/daftar-lapak', [CfdController::class, 'daftarLapak'])->name('lapak.daftar');
     Route::get('/lengkapi-produk', [CfdController::class, 'lengkapiProduk'])->name('produk.lengkapi');
     Route::post('/lengkapi-produk', [CfdController::class, 'simpanProduk'])->name('produk.simpan');
-    Route::get('/perizinan', [PerizinanController::class, 'create'])->name('perizinan.create');
-    Route::post('/perizinan', [PerizinanController::class, 'store'])->name('perizinan.store');
+    Route::get('/perizinan/{perizinan}/dokumen', [PerizinanController::class, 'dokumen'])->name('perizinan.dokumen');
     Route::get('/laporan-penjualan', [PenjualanController::class, 'laporan'])->name('penjualan.laporan');
     Route::post('/laporan-penjualan/{pendaftaran}', [PenjualanController::class, 'simpanLaporan'])->name('penjualan.simpan');
     Route::get('/analytics-penjualan', [PenjualanController::class, 'analytics'])->name('penjualan.analytics');
@@ -44,6 +43,7 @@ Route::middleware('auth:admin')->prefix('admin')->name('admin.')->group(function
     Route::delete('/lapak/{lapak}', [AdminController::class, 'destroyLapak'])->name('lapak.destroy');
 
     Route::get('/verifikasi', [AdminController::class, 'verifikasi'])->name('verifikasi');
+    Route::get('/perizinan/{perizinan}/dokumen', [PerizinanController::class, 'dokumen'])->name('perizinan.dokumen');
     Route::get('/analytics', [AdminAnalyticsController::class, 'index'])->name('analytics');
     Route::patch('/verifikasi/{pendaftaran}/terima', [AdminController::class, 'terimaPendaftaran'])->name('verifikasi.terima');
     Route::patch('/verifikasi/{pendaftaran}/tolak', [AdminController::class, 'tolakPendaftaran'])->name('verifikasi.tolak');

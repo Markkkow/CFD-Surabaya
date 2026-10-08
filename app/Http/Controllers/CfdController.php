@@ -13,6 +13,7 @@ use App\Models\LapakTenant;
 use App\Models\EventCfd;
 use App\Models\PendaftaranTenant;
 use App\Models\Produk;
+use App\Models\Perizinan;
 
 class CfdController extends Controller
 {
@@ -31,10 +32,17 @@ class CfdController extends Controller
     {
         $events = EventCfd::aktifBerjalan()->orderBy('tanggal_event')->orderBy('waktu_mulai')->get();
         $pendingSalesReportsCount = 0;
+        $latestPerizinan = null;
 
         if (Auth::guard('pedagang')->check()) {
             $nik = Auth::guard('pedagang')->user()->nik_pedagang;
             $eventSelesaiIds = EventCfd::sudahSelesai()->pluck('id_event');
+
+            $latestPerizinan = Perizinan::with('event')
+                ->where('nik_pedagang', $nik)
+                ->where('status_perizinan', 'Terverifikasi')
+                ->latest('id_perizinan')
+                ->first();
 
             $pendingSalesReportsCount = PendaftaranTenant::where('nik_pedagang', $nik)
                 ->where('status_pendaftaran', 'Terverifikasi')
@@ -43,7 +51,7 @@ class CfdController extends Controller
                 ->count();
         }
 
-        return view('home', compact('events', 'pendingSalesReportsCount'));
+        return view('home', compact('events', 'pendingSalesReportsCount', 'latestPerizinan'));
     }
 
     public function showLogin()
@@ -273,11 +281,11 @@ class CfdController extends Controller
             'jumlah_produk' => $produk->stok_produk,
             'keterangan_tambahan' => $produk->deskripsi_produk,
             'foto_produk' => $produk->foto_produk,
-            'status_pendaftaran' => 'Menunggu Perizinan',
+            'status_pendaftaran' => 'Menunggu Verifikasi',
         ]);
 
-        return redirect()->route('perizinan.create')
-            ->with('success', 'Data produk berhasil disimpan. Lengkapi dokumen perizinan untuk melanjutkan.');
+        return redirect()->route('home')
+            ->with('success', 'Data produk berhasil disimpan. Pendaftaran sekarang menunggu verifikasi admin.');
     }
 
     public function logout(Request $request)

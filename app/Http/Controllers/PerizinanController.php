@@ -42,6 +42,29 @@ class PerizinanController extends Controller
         ]);
     }
 
+
+    public function dokumen(Perizinan $perizinan)
+    {
+        $isAdmin = Auth::guard('admin')->check();
+        $isOwner = Auth::guard('pedagang')->check()
+            && Auth::guard('pedagang')->user()->nik_pedagang === $perizinan->nik_pedagang;
+
+        abort_unless($isAdmin || $isOwner, 403);
+
+        $perizinan->load(['pedagang', 'event']);
+
+        $pendaftaran = PendaftaranTenant::with('lapak')
+            ->where('nik_pedagang', $perizinan->nik_pedagang)
+            ->where('id_event', $perizinan->id_event)
+            ->where('status_pendaftaran', 'Terverifikasi')
+            ->latest('id_pendaftaran')
+            ->first();
+
+        abort_unless($pendaftaran, 404);
+
+        return view('perizinan.dokumen', compact('perizinan', 'pendaftaran'));
+    }
+
     public function store(Request $request)
     {
         $nik = Auth::guard('pedagang')->user()->nik_pedagang;
